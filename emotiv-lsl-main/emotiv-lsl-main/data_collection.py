@@ -12,7 +12,7 @@ import os
 # 4. repeat 2 and 3 until all states are done
 
 SRATE = 256
-TIME = 15 # seconds
+TIME = 30 # seconds
 STATES = ["RESTING", "LEFT", "RIGHT", "UP", "DOWN"]
 CURRENT_STATE = 0
 SUBJECT_ID = 0
@@ -78,6 +78,8 @@ def main():
      SUBJECT_ID = input("Enter subject ID: ")
      path = f"data-collection/{SUBJECT_ID}_eeg"
      os.mkdir(path)
+     os.mkdir(f"{path}/EEGs")
+     os.mkdir(f"{path}/PSDs")
      record(STATES[CURRENT_STATE], int(SUBJECT_ID), CURRENT_STATE, path)
 
 if __name__ == '__main__':

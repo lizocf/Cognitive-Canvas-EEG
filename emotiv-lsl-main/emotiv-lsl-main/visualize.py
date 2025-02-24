@@ -1,8 +1,7 @@
-import os
-import mne
-import json
-import numpy as np
-import pandas as pd
+import time
+from bsl import StreamPlayer
 
-
-eeg_file = "womp.fif"
+sp = StreamPlayer(stream_name='StreamPlayer', fif_file=r'data-collection/4_eeg/EEGs/raw_4_DOWN_eeg.fif')
+sp.start()
+time.sleep(10)
+sp.stop()

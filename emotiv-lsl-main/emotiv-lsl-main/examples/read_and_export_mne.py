@@ -8,7 +8,7 @@ from pylsl import StreamInlet, resolve_stream
 # from config import SRATE
 
 SRATE = 256
-TIME = 10
+TIME = 20
 
 
 def get_info() -> Info:
