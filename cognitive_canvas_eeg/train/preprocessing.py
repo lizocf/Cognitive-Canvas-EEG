@@ -6,21 +6,54 @@ from tqdm import tqdm
 
 from cognitive_canvas_eeg.config import PROCESSED_DATA_DIR, RAW_DATA_DIR
 
+import pywt
+import numpy as np
+import mne
+import pandas as pd
+
 app = typer.Typer()
+
+EEG_COLUMNS = [ 'EEG.AF3','EEG.F7','EEG.F3','EEG.FC5','EEG.T7','EEG.P7','EEG.O1',
+                'EEG.O2','EEG.P8','EEG.T8', 'EEG.FC6','EEG.F4','EEG.F8','EEG.AF4']
+
+SFREQ = 128
 
 class EEGPreprocessor:
     def __init__(self, input_path: Path, output_path: Path):
         self.input_path = input_path
         self.output_path = output_path
 
-    def process_csv(self):
-        pass
-    
-    def write_csv(self):
-        pass
+    def get_eeg_df(self, csv_path):
+        subject_df = pd.read_csv(csv_path)
+        return subject_df[EEG_COLUMNS]
 
-    def dwt(self, eeg_df):
-        pass
+    def get_denoised(self, eeg_csv):
+        raw_eeg = mne.io.read_raw_fif(eeg_csv)
+        eeg_df = pd.DataFrame(raw_eeg.get_data().T)
+        denoised_eeg = self.denoise(eeg_df, wavelet="coif17")
+        return denoised_eeg
+
+    def get_mne_raw(self, denoised_eeg):
+        info = mne.create_info(ch_names=EEG_COLUMNS, sfreq=SFREQ, ch_types='eeg')
+        raw = mne.io.RawArray(denoised_eeg.transpose(), info)
+        return raw
+
+    def maddest(self, d, axis=None):
+        return np.mean(np.absolute(d - np.mean(d, axis)), axis)
+
+    def denoise(self, x, wavelet='haar', level=1):
+        ret = {key:[] for key in x.columns}
+        
+        for pos in x.columns:
+            coeff = pywt.wavedec(x[pos], wavelet, mode="per")
+            sigma = (1/0.6745) * self.maddest(coeff[-level])
+
+            uthresh = sigma * np.sqrt(2*np.log(len(x)))
+            coeff[1:] = (pywt.threshold(i, value=uthresh, mode='hard') for i in coeff[1:])
+
+            ret[pos]=pywt.waverec(coeff, wavelet, mode='per')
+        
+        return pd.DataFrame(ret)
 
     def filter(self, raw, start, stop):
         raw_copy = raw.copy()
