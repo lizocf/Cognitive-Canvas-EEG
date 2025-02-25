@@ -13,14 +13,13 @@ class EEGPreprocessor:
         self.input_path = input_path
         self.output_path = output_path
 
-    def process(self):
-        logger.info("Processing dataset...")
-        for i in tqdm(range(10), total=10):
-            if i == 5:
-                logger.info("Something happened for iteration 5.")
-        logger.success("Processing dataset complete.")
+    def process_csv(self):
+        pass
     
-    def dwt(self):
+    def write_csv(self):
+        pass
+
+    def dwt(self, eeg_df):
         pass
 
     def filter(self, raw, start, stop):
@@ -35,7 +34,6 @@ class EEGPreprocessor:
         pass
 
 
-C:\Users\lizoc\OneDrive\Desktop\Cognitive-Canvas-EEG\cognitive_canvas_eeg
 
 @app.command()
 def main(
