@@ -3,6 +3,7 @@ from pathlib import Path
 import typer
 from loguru import logger
 from tqdm import tqdm
+import os
 
 from cognitive_canvas_eeg.config import PROCESSED_DATA_DIR, RAW_DATA_DIR
 
@@ -10,11 +11,12 @@ import pywt
 import numpy as np
 import mne
 import pandas as pd
+import matplotlib.pyplot as plt
 
 app = typer.Typer()
 
-EEG_COLUMNS = [ 'EEG.AF3','EEG.F7','EEG.F3','EEG.FC5','EEG.T7','EEG.P7','EEG.O1',
-                'EEG.O2','EEG.P8','EEG.T8', 'EEG.FC6','EEG.F4','EEG.F8','EEG.AF4']
+EEG_COLUMNS = ['EEG.AF3','EEG.F7','EEG.F3','EEG.FC5','EEG.T7','EEG.P7','EEG.O1',
+               'EEG.O2','EEG.P8','EEG.T8', 'EEG.FC6','EEG.F4','EEG.F8','EEG.AF4']
 
 SFREQ = 128
 
@@ -31,12 +33,10 @@ class EEGPreprocessor:
         
 
     def get_eeg_df(self, csv_path):
-        subject_df = pd.read_csv(csv_path)
+        subject_df = pd.read_csv(csv_path, header=1)
         return subject_df[EEG_COLUMNS]
 
-    def get_denoised(self, eeg_csv):
-        raw_eeg = mne.io.read_raw_fif(eeg_csv)
-        eeg_df = pd.DataFrame(raw_eeg.get_data().T)
+    def get_denoised(self, eeg_df):
         denoised_eeg = self.denoise(eeg_df, wavelet="coif17")
         return denoised_eeg
 
@@ -83,22 +83,63 @@ class EEGPreprocessor:
         mean_powers = [np.mean(band_powers[band]) for band in bands_names]
 
         return {band: np.mean(band_powers[band]) for band in bands_names}
+    
+    def batches(self):
+        for csv in os.listdir(self.input_path):
+
+            if not csv.startswith("."):
+
+                csv_path = os.path.join(self.input_path, csv)
+                eeg_df = self.get_eeg_df(csv_path)
+                denoised_eeg = self.get_denoised(eeg_df)
+
+                words = csv_path.split('_')
+
+                if "LEFT" in words:
+                    denoised_eeg['Label'] = 0
+                elif "RIGHT" in words:
+                    denoised_eeg['Label'] = 1
+                elif "PULL" in words:
+                    denoised_eeg['Label'] = 2
+                else:
+                    denoised_eeg['Label'] = 3
+                    
+                denoised_eeg.to_csv(csv,index=False)
+
+
+
+        
+
+
 
 @app.command()
 def main(
     # ---- REPLACE DEFAULT PATHS AS APPROPRIATE ----
-    input_path: Path = RAW_DATA_DIR / "dataset.csv",
+    input_path: Path = RAW_DATA_DIR, 
     output_path: Path = PROCESSED_DATA_DIR / "dataset.csv",
     # ----------------------------------------------
 ):
     # ---- REPLACE THIS WITH YOUR OWN CODE ----
-    logger.info("Processing dataset...")
-    for i in tqdm(range(10), total=10):
-        if i == 5:
-            logger.info("Something happened for iteration 5.")
-    logger.success("Processing dataset complete.")
+    # logger.info("Processing dataset...")
+    # for i in tqdm(range(10), total=10):
+    #     if i == 5:
+    #         logger.info("Something happened for iteration 5.")
+    # logger.success("Processing dataset complete.")
     # -----------------------------------------
 
+    preprocessor = EEGPreprocessor(input_path, output_path)
+    # eeg_df = preprocessor.get_eeg_df(input_path)
+    # denoised_eeg = preprocessor.get_denoised(eeg_df)
+
+    # raw = preprocessor.get_mne_raw(denoised_eeg)
+    # delta_waves = preprocessor.filter(raw, 1, 4)
+    # # delta_waves.plot(scalings="auto")
+    # # plt.show()
+
+    # band_dict = preprocessor.spectral_power(raw)
+    # print(band_dict)
+
+    preprocessor.batches()
 
 if __name__ == "__main__":
     app()
