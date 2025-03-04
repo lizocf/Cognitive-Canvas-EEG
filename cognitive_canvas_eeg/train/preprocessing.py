@@ -85,38 +85,45 @@ class EEGPreprocessor:
         return {band: np.mean(band_powers[band]) for band in bands_names}
     
     def batches(self):
+        # TODO: RENAME OUTPUT FILES
+
         for csv in os.listdir(self.input_path):
 
-            if not csv.startswith("."):
+            if csv.endswith(".csv"):
+                # breakpoint()
 
                 csv_path = os.path.join(self.input_path, csv)
-                eeg_df = self.get_eeg_df(csv_path)
-                denoised_eeg = self.get_denoised(eeg_df)
+                # breakpoint()
+                try:
+                    eeg_df = self.get_eeg_df(csv_path)
+                    denoised_eeg = self.get_denoised(eeg_df)
 
-                words = csv_path.split('_')
-
-                if "LEFT" in words:
-                    denoised_eeg['Label'] = 0
-                elif "RIGHT" in words:
-                    denoised_eeg['Label'] = 1
-                elif "PULL" in words:
-                    denoised_eeg['Label'] = 2
-                else:
-                    denoised_eeg['Label'] = 3
+                    words = csv_path.split('_')
                     
-                denoised_eeg.to_csv(csv,index=False)
+                    if "RESTING" in words:
+                        denoised_eeg['Label'] = 0
+                    elif "LEFT" in words:
+                        denoised_eeg['Label'] = 1
+                    elif "RIGHT" in words:
+                        denoised_eeg['Label'] = 2
+                    elif "PULL" in words:
+                        denoised_eeg['Label'] = 3
+                    elif "PUSH" in words: 
+                        denoised_eeg['Label'] = 4
+                    else:
+                        pass
+                        
+                    denoised_eeg.to_csv(f"{self.output_path}/{csv}", index=False)
 
-
-
-        
-
+                except:
+                    pass
 
 
 @app.command()
 def main(
     # ---- REPLACE DEFAULT PATHS AS APPROPRIATE ----
     input_path: Path = RAW_DATA_DIR, 
-    output_path: Path = PROCESSED_DATA_DIR / "dataset.csv",
+    output_path: Path = PROCESSED_DATA_DIR
     # ----------------------------------------------
 ):
     # ---- REPLACE THIS WITH YOUR OWN CODE ----
