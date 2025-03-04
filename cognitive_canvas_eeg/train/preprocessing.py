@@ -5,7 +5,7 @@ from loguru import logger
 from tqdm import tqdm
 import os
 
-from cognitive_canvas_eeg.config import PROCESSED_DATA_DIR, RAW_DATA_DIR
+from cognitive_canvas_eeg.config import PROCESSED_DATA_DIR, RAW_DATA_DIR, INTERIM_DATA_DIR
 
 import pywt
 import numpy as np
@@ -89,18 +89,17 @@ class EEGPreprocessor:
 
         for csv in os.listdir(self.input_path):
 
-            if csv.endswith(".csv"):
-                # breakpoint()
-
+            if csv.endswith(".csv") and csv.startswith("raw"):
                 csv_path = os.path.join(self.input_path, csv)
-                # breakpoint()
+                
                 try:
                     eeg_df = self.get_eeg_df(csv_path)
                     denoised_eeg = self.get_denoised(eeg_df)
 
                     words = csv_path.split('_')
+                    words = [word.upper() for word in words]
                     
-                    if "RESTING" in words:
+                    if "RESTING" in words or "REST" in words:
                         denoised_eeg['Label'] = 0
                     elif "LEFT" in words:
                         denoised_eeg['Label'] = 1
@@ -123,7 +122,8 @@ class EEGPreprocessor:
 def main(
     # ---- REPLACE DEFAULT PATHS AS APPROPRIATE ----
     input_path: Path = RAW_DATA_DIR, 
-    output_path: Path = PROCESSED_DATA_DIR
+    # output_path: Path = PROCESSED_DATA_DIR
+    output_path: Path = INTERIM_DATA_DIR
     # ----------------------------------------------
 ):
     # ---- REPLACE THIS WITH YOUR OWN CODE ----
