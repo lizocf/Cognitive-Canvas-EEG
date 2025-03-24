@@ -24,12 +24,6 @@ class EEGPreprocessor:
     def __init__(self, input_path: Path, output_path: Path):
         self.input_path = input_path
         self.output_path = output_path
-        self.bands = {
-        'Delta': (0.5, 4),
-        'Theta': (4, 8),
-        'Alpha': (8, 13),
-        'Beta': (13, 30)
-    }
         
 
     def get_eeg_df(self, csv_path):
@@ -66,23 +60,6 @@ class EEGPreprocessor:
         raw_copy = raw.copy()
         filtered_eeg = raw_copy.filter(start,stop, picks='eeg')
         return filtered_eeg
-
-    def bandpower(self,psd, freqs, band):
-        band_freqs = np.logical_and(freqs >= band[0], freqs <= band[1])
-        band_power = np.mean(psd[:, :, band_freqs], axis=-1) # averaging across all epochs 
-        # psd --> [number of epochs, n_channels, n_time_points]
-        return np.mean(band_power, axis=0) # averages across all epochs 
-
-    def spectral_power(self, raw):
-        p = raw.compute_psd()
-        freqs = p.freqs 
-        psd_data = p.data 
-
-        band_powers = {band: self.bandpower(np.expand_dims(psd_data, axis=0), freqs, self.bands[band]) for band in self.bands}
-        bands_names = list(band_powers.keys())
-        mean_powers = [np.mean(band_powers[band]) for band in bands_names]
-
-        return {band: np.mean(band_powers[band]) for band in bands_names}
     
     def batches(self):
         # TODO: RENAME OUTPUT FILES
@@ -95,6 +72,9 @@ class EEGPreprocessor:
                 try:
                     eeg_df = self.get_eeg_df(csv_path)
                     denoised_eeg = self.get_denoised(eeg_df)
+
+                    breakpoint()
+                    bands = self.spectral_power(denoised_eeg)
 
                     words = csv_path.split('_')
                     words = [word.upper() for word in words]
