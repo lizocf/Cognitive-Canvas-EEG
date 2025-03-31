@@ -1,5 +1,3 @@
-<<<<<<< Updated upstream
-=======
 from pylsl import StreamInfo, StreamOutlet, StreamInlet, resolve_stream, cf_string
 
 from pathlib import Path
@@ -69,7 +67,6 @@ def main(
 
     model = EEGNet()
     model.load_state_dict(torch.load(model_path))
-    
     # inlet = StreamInlet(resolve_stream('type', 'EEG')[0], max_buflen=1.0)  # 1-second buffer
     inlet = StreamInlet(resolve_stream('type', 'EEG')[0]) 
     
@@ -111,4 +108,3 @@ def main(
 
 if __name__ == "__main__":
     app()
->>>>>>> Stashed changes
