@@ -5,8 +5,7 @@ from loguru import logger
 from tqdm import tqdm
 import os
 
-from cognitive_canvas_eeg.config import PROCESSED_DATA_DIR, RAW_DATA_DIR, INTERIM_DATA_DIR
-
+from cognitive_canvas_eeg.config import *
 import pywt
 import numpy as np
 import mne
@@ -24,13 +23,28 @@ class EEGPreprocessor:
     def __init__(self, input_path: Path, output_path: Path):
         self.input_path = input_path
         self.output_path = output_path
-        
+        self.bands = {
+            'Delta': (0.5, 4),
+            'Theta': (4, 8),
+            'Alpha': (8, 13),
+            'Beta': (13, 30)
+        }
+
 
     def get_eeg_df(self, csv_path):
         subject_df = pd.read_csv(csv_path, header=1)
         return subject_df[EEG_COLUMNS]
+    
+    def get_filtered_df(self, eeg_df, cutoff = 0.16):
+        info = mne.create_info(ch_names = EEG_COLUMNS, sfreq = SFREQ, ch_types='eeg')
+        raw = mne.io.RawArray(eeg_df.transpose(), info)
+
+        filtered = self.filter(raw, cutoff, stop=None)
+        filtered_df = pd.DataFrame(filtered.get_data().T, columns=EEG_COLUMNS)
+        return filtered_df
 
     def get_denoised(self, eeg_df):
+        eeg_df = self.get_filtered_df(eeg_df)   # high pass cutoff 0.16 Hz
         denoised_eeg = self.denoise(eeg_df, wavelet="coif17")
         return denoised_eeg
 
@@ -53,6 +67,8 @@ class EEGPreprocessor:
             coeff[1:] = (pywt.threshold(i, value=uthresh, mode='hard') for i in coeff[1:])
 
             ret[pos]=pywt.waverec(coeff, wavelet, mode='per')
+
+        # breakpoint()
         
         return pd.DataFrame(ret)
 
@@ -61,19 +77,46 @@ class EEGPreprocessor:
         filtered_eeg = raw_copy.filter(start,stop, picks='eeg')
         return filtered_eeg
     
+    def bandpower(self, psd, freqs, band):
+        band_freqs = np.logical_and(freqs >= band[0], freqs <= band[1])
+        band_power = np.mean(psd[:, :, band_freqs], axis=-1) # averaging across all epochs 
+        # psd --> [number of epochs, n_channels, n_time_points]
+        # breakpoint()
+        return np.mean(band_power, axis=0) # averages across all epochs 
+    
+    
+    def spectral_power(self, denoised_eeg_df, fourchan=False):
+
+        if fourchan:
+            denoised_eeg_df = denoised_eeg_df[['EEG.F3','EEG.FC5','EEG.FC6','EEG.F4']]
+
+        raw = self.get_mne_raw(denoised_eeg_df)
+        p = raw.compute_psd()
+        freqs = p.freqs 
+        psd_data = p.data 
+
+        band_powers = {band: self.bandpower(np.expand_dims(psd_data, axis=0), freqs, self.bands[band]) for band in self.bands}
+        bands_names = list(band_powers.keys())
+
+        mean_powers = [np.mean(band_powers[band]) for band in bands_names]
+
+        return {band: np.mean(band_powers[band]) for band in bands_names}
+    
     def batches(self):
         # TODO: RENAME OUTPUT FILES
 
         for csv in os.listdir(self.input_path):
+            # breakpoint()
 
-            if csv.endswith(".csv") and csv.startswith("raw"):
+            if csv.endswith(".csv") and csv.startswith("raw") or csv.startswith("raweeg"):
                 csv_path = os.path.join(self.input_path, csv)
-                
+                # breakpoint()
+
                 try:
                     eeg_df = self.get_eeg_df(csv_path)
                     denoised_eeg = self.get_denoised(eeg_df)
 
-                    breakpoint()
+                    # breakpoint()
                     bands = self.spectral_power(denoised_eeg)
 
                     words = csv_path.split('_')
@@ -94,6 +137,7 @@ class EEGPreprocessor:
                         
                     denoised_eeg.to_csv(f"{self.output_path}/{csv}", index=False)
 
+
                 except:
                     pass
 
@@ -101,9 +145,9 @@ class EEGPreprocessor:
 @app.command()
 def main(
     # ---- REPLACE DEFAULT PATHS AS APPROPRIATE ----
-    input_path: Path = RAW_DATA_DIR, 
+    input_path: Path = LZL_RAW_DATA_DIR, 
     # output_path: Path = PROCESSED_DATA_DIR
-    output_path: Path = INTERIM_DATA_DIR
+    output_path: Path = LZL_INTERIM_DATA_DIR
     # ----------------------------------------------
 ):
     # ---- REPLACE THIS WITH YOUR OWN CODE ----
@@ -114,7 +158,10 @@ def main(
     # logger.success("Processing dataset complete.")
     # -----------------------------------------
 
+    # breakpoint()
+
     preprocessor = EEGPreprocessor(input_path, output_path)
+
     # eeg_df = preprocessor.get_eeg_df(input_path)
     # denoised_eeg = preprocessor.get_denoised(eeg_df)
 

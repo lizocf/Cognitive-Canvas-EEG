@@ -13,7 +13,7 @@ from sklearn.decomposition import PCA
 import numpy as np 
 import mne
 
-from cognitive_canvas_eeg.config import PROCESSED_DATA_DIR, RAW_DATA_DIR, INTERIM_DATA_DIR
+from cognitive_canvas_eeg.config import *
 from preprocessing import EEG_COLUMNS, SFREQ
 
 app = typer.Typer()
@@ -21,7 +21,6 @@ app = typer.Typer()
 # TODO: make variable names consistent 
 
 FEATURE_NAMES = ["hjorth_activity", "hjorth_mobility", "hjorth_complexity", "katz_FD" ]
-
 
 class FeatureAbstraction():
     def __init__(self,n,input_path: Path, output_path: Path):
@@ -55,7 +54,9 @@ class FeatureAbstraction():
     def get_ratios(self, band1, band2):
         return band1 / band2
 
-    def get_mne_raw(self, denoised_eeg):
+    def get_mne_raw(self, denoised_eeg, fourchan=False):
+        if fourchan:
+            EEG_COLUMNS = ['EEG.F3','EEG.FC5','EEG.FC6','EEG.F4']
         if denoised_eeg.shape[1] == 2:
             info = mne.create_info(ch_names=['EEG.FC5', 'EEG.FC6'], sfreq=SFREQ, ch_types='eeg')
         else:
@@ -67,6 +68,7 @@ class FeatureAbstraction():
         band_freqs = np.logical_and(freqs >= band[0], freqs <= band[1])
         band_power = np.mean(psd[:, :, band_freqs], axis=-1) # averaging across all epochs 
         # psd --> [number of epochs, n_channels, n_time_points]
+        # breakpoint()
         return np.mean(band_power, axis=0) # averages across all epochs 
     
     def get_mew(self, denoised_eeg_df):
@@ -80,20 +82,26 @@ class FeatureAbstraction():
         return {'Mu' : np.mean(mean_power)}
     
     
-    def spectral_power(self, denoised_eeg_df):
+    def spectral_power(self, denoised_eeg_df, fourchan=False):
 
-        raw = self.get_mne_raw(denoised_eeg_df)
+        if fourchan:
+            denoised_eeg_df = denoised_eeg_df[['EEG.F3','EEG.FC5','EEG.FC6','EEG.F4']]
+
+        raw = self.get_mne_raw(denoised_eeg_df, fourchan=fourchan)
         p = raw.compute_psd()
         freqs = p.freqs 
         psd_data = p.data 
 
         band_powers = {band: self.bandpower(np.expand_dims(psd_data, axis=0), freqs, self.bands[band]) for band in self.bands}
         bands_names = list(band_powers.keys())
+
+        # breakpoint()
+
         mean_powers = [np.mean(band_powers[band]) for band in bands_names]
 
         return {band: np.mean(band_powers[band]) for band in bands_names}
     
-    def batches(self):
+    def batches(self, fourchan=False):
         feature_df = pd.DataFrame(columns=['hjorth_activity', 'hjorth_mobility', 'hjorth_complexity','katz_FD', 'Label'])
         big_out = []
         for csv in tqdm(os.listdir(self.input_path)):
@@ -104,7 +112,7 @@ class FeatureAbstraction():
                 eeg_df, label = self.get_eeg_df(csv_path)
                 components = self.pca(eeg_df)
 
-                bands = self.spectral_power(eeg_df)
+                bands = self.spectral_power(eeg_df, fourchan=fourchan)
                 mew = self.get_mew(eeg_df)
 
                 band_ratio = self.get_ratios(bands['Beta'], mew['Mu'])
@@ -140,14 +148,15 @@ class FeatureAbstraction():
 @app.command()
 def main(
     # ---- REPLACE DEFAULT PATHS AS APPROPRIATE ----
-    input_path: Path = INTERIM_DATA_DIR,
-    output_path: Path = PROCESSED_DATA_DIR
+    input_path: Path = LZL_INTERIM_DATA_DIR,
+    output_path: Path = LZL_PROCESSED_DATA_DIR
     # ----------------------------------------------
 ):
     
     f = FeatureAbstraction(n=3, input_path=input_path, output_path=output_path)
     
-    f.batches()
+    # f.batches()
+    f.batches(fourchan=True)
     
 
 
