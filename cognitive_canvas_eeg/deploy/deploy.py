@@ -17,7 +17,7 @@ import pywt
 import torch
 from eegnet import EEGNet
 
-T = 2 # Seconds
+T = 1 # Seconds
 SAMP_RATE = 128 # Hz
 
 def maddest(d, axis=None):
@@ -65,6 +65,8 @@ def main(
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_ip = '10.10.10.10' 
 
+
+    # torch.serialization.add_safe_globals([EEGNet])
     model = EEGNet()
     model.load_state_dict(torch.load(model_path))
     # inlet = StreamInlet(resolve_stream('type', 'EEG')[0], max_buflen=1.0)  # 1-second buffer
@@ -82,7 +84,7 @@ def main(
                 # message = command.to_bytes(4, byteorder='big')
                 # client_socket.send(message)
                 # print(f"Sent: {message}")
-                    print(len(chunk))
+                    # print(len(chunk))
                     chunk_arr = np.array(chunk)
                     chunk_arr = chunk_arr[:, 3:-2]
                     chunk_arr = np.expand_dims(chunk_arr,axis=0)
@@ -92,6 +94,7 @@ def main(
                     _, predicted = torch.max(outputs, 1)  # Get predicted class
 
                     p = int(predicted)
+                    print('SENDING: ', p)
                     message = p.to_bytes(4, byteorder='big')
                     client_socket.send(message)
 

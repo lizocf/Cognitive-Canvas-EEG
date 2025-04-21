@@ -48,7 +48,7 @@ class EEGNet(nn.Module):
     def _compute_fc_input_dim(self):
         # Run a forward pass with dummy data to compute the correct size
         # dummy_input = torch.randn(1, 1, self.num_channels, 1281)  # (batch, 1, 14, 1281)
-        dummy_input = torch.randn(1, 1, self.num_channels, 256)  # (batch, 1, 14, 1281)
+        dummy_input = torch.randn(1, 1, self.num_channels, 128)  # (batch, 1, 14, 1281)
         dummy_output = self._forward_features(dummy_input)
         return dummy_output.view(1, -1).shape[1]
 

@@ -16,6 +16,11 @@ INTERIM_DATA_DIR = DATA_DIR / "interim"
 PROCESSED_DATA_DIR = DATA_DIR / "processed"
 EXTERNAL_DATA_DIR = DATA_DIR / "external"
 
+LZL_RAW_DATA_DIR = DATA_DIR / "lzl_raw"
+LZL_INTERIM_DATA_DIR = DATA_DIR / "lzl_interim"
+LZL_PROCESSED_DATA_DIR = DATA_DIR / "lzl_processed"
+LZL_EXTERNAL_DATA_DIR = DATA_DIR / "lzl_external"
+
 MODELS_DIR = PROJ_ROOT / "models"
 
 REPORTS_DIR = PROJ_ROOT / "reports"
