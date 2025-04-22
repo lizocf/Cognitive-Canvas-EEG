@@ -14,7 +14,7 @@ import numpy as np
 import mne
 
 from cognitive_canvas_eeg.config import *
-from preprocessing import EEG_COLUMNS, SFREQ
+from cognitive_canvas_eeg.train.preprocessing import EEG_COLUMNS, SFREQ
 
 app = typer.Typer()
 
@@ -55,8 +55,8 @@ class FeatureAbstraction():
         return band1 / band2
 
     def get_mne_raw(self, denoised_eeg, fourchan=False):
-        if fourchan:
-            EEG_COLUMNS = ['EEG.F3','EEG.FC5','EEG.FC6','EEG.F4']
+        # if fourchan:
+        #     EEG_COLUMNS = ['EEG.F3','EEG.FC5','EEG.FC6','EEG.F4']
         if denoised_eeg.shape[1] == 2:
             info = mne.create_info(ch_names=['EEG.FC5', 'EEG.FC6'], sfreq=SFREQ, ch_types='eeg')
         else:
@@ -144,6 +144,32 @@ class FeatureAbstraction():
 
         feature_df.to_csv(f"{self.output_path}/feature_df.csv", index=False)
 
+    def apply_abstraction(self, eeg_df):
+        out = []
+        big_out = []
+        bands = self.spectral_power(eeg_df, fourchan=False)
+        mew = self.get_mew(eeg_df)
+
+
+        band_ratio = self.get_ratios(bands['Beta'], mew['Mu'])
+        activity, mobility, complexity = self.hjorth_params(eeg_df)
+        fractals = self.katz_fractals(eeg_df)
+
+        data = ([activity, mobility, complexity, fractals])
+
+        for i, d in enumerate(data):
+            list_name = [FEATURE_NAMES[i] + "_" + s for s in EEG_COLUMNS]
+            out.append(dict(zip(list_name, d)))
+
+        big_out.append(out[0] | out[1] | out[2] | out[3] | {'BMu Ratio' : band_ratio} | bands | mew)
+        feature_df = pd.DataFrame(big_out)
+
+        feature_df = feature_df[['hjorth_activity_EEG.F3', 'hjorth_activity_EEG.FC5', 'hjorth_activity_EEG.F4', 'hjorth_activity_EEG.FC6',
+              'hjorth_mobility_EEG.F3', 'hjorth_mobility_EEG.FC5', 'hjorth_mobility_EEG.F4', 'hjorth_mobility_EEG.FC6',
+              'hjorth_complexity_EEG.F3', 'hjorth_complexity_EEG.FC5', 'hjorth_complexity_EEG.F4', 'hjorth_complexity_EEG.FC6',
+              'katz_FD_EEG.F3', 'katz_FD_EEG.FC5', 'katz_FD_EEG.F4', 'katz_FD_EEG.FC6', 'BMu Ratio', 'Delta', 'Theta', 'Alpha', 'Beta', 'Mu']]
+
+        return feature_df
 
 @app.command()
 def main(
