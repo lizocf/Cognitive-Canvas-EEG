@@ -53,22 +53,22 @@ def load_classification_models(model_1_fn='logreg_7_3CLASS_0.8462.pkl', LR_model
 
 def classify(input, model_1, LR_model, PP_model, pca1, pcaLR, pcaPP):
     
-    m1_input = pca1.fit(input)
+    m1_input = pca1.transform(input)
     three_output = model_1.predict(m1_input)
 
     if three_output == 0:       # resting
         return 0
     elif three_output == 1:     # left/right
-        lr_input = pcaLR.fit(input)
+        lr_input = pcaLR.transform(input)
         LR_output = LR_model.predict(lr_input)
         return LR_output
     
     elif three_output == 2:     # push/pull
-        pp_input = pcaPP.fit(input)
+        pp_input = pcaPP.transform(input)
         PP_output = PP_model.predict(pp_input)
         return PP_output
     else:                       # ERROR
-        return 0
+        return -1
  
 def get_trained_pca(num_components, scaled_data):
     pca = PCA(n_components = num_components) 
@@ -89,6 +89,10 @@ def main(
 
     scaler = StandardScaler()
     training_df = pd.read_csv('../data/lzl_processed/feature_df.csv')
+    training_df = training_df[['hjorth_activity_EEG.F3', 'hjorth_activity_EEG.FC5', 'hjorth_activity_EEG.F4', 'hjorth_activity_EEG.FC6',
+              'hjorth_mobility_EEG.F3', 'hjorth_mobility_EEG.FC5', 'hjorth_mobility_EEG.F4', 'hjorth_mobility_EEG.FC6',
+              'hjorth_complexity_EEG.F3', 'hjorth_complexity_EEG.FC5', 'hjorth_complexity_EEG.F4', 'hjorth_complexity_EEG.FC6',
+              'katz_FD_EEG.F3', 'katz_FD_EEG.FC5', 'katz_FD_EEG.F4', 'katz_FD_EEG.FC6', 'BMu Ratio', 'Delta', 'Theta', 'Alpha', 'Beta', 'Mu']]
     scaled_data = scaler.fit_transform(np.array(training_df))
 
     pca7 = get_trained_pca(7, scaled_data)  # THREE-WAY MODEL
@@ -119,11 +123,10 @@ def main(
                     denoised_eeg = preprocessor.get_denoised(chunk_df)                    
                     feature_df = featabs.apply_abstraction(denoised_eeg)
                     
-                    scaled_in = scaler.fit_transform(np.array(feature_df))  # DOESNT WORK
+                    scaled_in = scaler.transform(np.array(feature_df))
+                    scaled_in = scaled_in.reshape(1, -1)    # reshape to one sample for PCA input
 
-                    # PCA7 DOESNT WORK ON ONE INPUT
-
-                    breakpoint()
+                    # breakpoint()
                     predicted = classify(scaled_in, model_1, LR_model, PP_model, pca7, pca4, pca6)
 
                     p = int(predicted)
